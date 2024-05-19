@@ -1,7 +1,14 @@
+extern crate leveldb;
+
 use std::env;
 use std::fs::File;
 use std::io;
 use std::io::Read;
+use std::path::Path;
+
+use leveldb::database::Database;
+use leveldb::kv::KV;
+use leveldb::options::{Options, ReadOptions, WriteOptions};
 
 #[derive(Clone, Debug, PartialEq)]
 enum TagType {
@@ -205,7 +212,7 @@ impl LevelData {
 }
 
 fn main() -> io::Result<()> {
-	// Parse command-line arguments
+    // Parse command-line arguments
     let args: Vec<String> = env::args().collect();
 
     // Check if --world_dir argument is provided
@@ -223,6 +230,25 @@ fn main() -> io::Result<()> {
     // Print the level data
     println!("Level Data:");
     level_data.print();
+
+    let mut options = Options::new();
+    options.block_size = Some(4096);
+    let levelDbPath = Path::new(world_dir).join("db");
+    let mut database: Database<i32> = match Database::open(levelDbPath.as_ref(), options) {
+        Ok(db) => { db },
+        Err(e) => { panic!("failed to open database: {:?}", e) }
+    };
+
+    let read_opts = ReadOptions::new();
+    let res = database.get(read_opts, 1);
+
+    match res {
+      Ok(data) => {
+        assert!(data.is_some());
+        assert_eq!(data, Some(vec![1]));
+      }
+      Err(e) => { panic!("failed reading data: {:?}", e) }
+    }
 
     Ok(())
 }
